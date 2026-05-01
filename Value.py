@@ -13,6 +13,9 @@ SP_pe_ratios = pd.read_csv(CSV_FILE)
 clean_pe = SP_pe_ratios.dropna(subset = ["Trailing P/E"])
 clean_pe = clean_pe[clean_pe["Trailing P/E"]>0]
 
-top_20_pe = clean_pe.nlargest(20, "Trailing P/E").sort_values(by = "Trailing P/E")
-bottom_20_pe = clean_pe.nsmallest(20, "Trailing P/E").sort_values(by = "Trailing P/E")
-print(top_20_pe, bottom_20_pe)
+def get_high_low_values(df):
+    top_20_pe = clean_pe.nlargest(20, "Trailing P/E").sort_values(by = "Trailing P/E")
+    bottom_20_pe = clean_pe.nsmallest(20, "Trailing P/E").sort_values(by = "Trailing P/E")
+    print(top_20_pe, bottom_20_pe)
+
+get_high_low_values(clean_pe)
