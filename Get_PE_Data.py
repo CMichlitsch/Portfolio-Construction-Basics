@@ -7,7 +7,7 @@ import yfinance as yf
 
 DATA_DIR = Path("Data")
 COMPANIES_FILE = DATA_DIR / "sp500_companies.csv"
-OUTPUT_FILE = DATA_DIR / "sp500_pe_ratios.csv"
+OUTPUT_FILE = DATA_DIR / "sp500_fundamentals.csv"
 
 
 def yahoo_symbol(symbol):
@@ -26,6 +26,9 @@ def fetch_pe_data(symbols):
             print(f"Could not fetch {symbol}: {error}")
             info = {}
 
+        dividend_rate = info.get("dividendRate")
+        dividend_yield = info.get("dividendYield")
+
         rows.append(
             {
                 "Symbol": symbol,
@@ -35,6 +38,9 @@ def fetch_pe_data(symbols):
                 "Trailing P/E": info.get("trailingPE"),
                 "Forward P/E": info.get("forwardPE"),
                 "Market Cap": info.get("marketCap"),
+                "Beta": info.get("beta"),
+                "Dividend Rate": dividend_rate,
+                "Dividend Yield": dividend_yield,
                 "Currency": info.get("currency"),
                 "Quote Type": info.get("quoteType"),
             }
