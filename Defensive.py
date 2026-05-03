@@ -1,20 +1,30 @@
 from pathlib import Path
-
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-
 
 DATA_DIR = Path("Data")
 CSV_FILE = DATA_DIR / "sp500_fundamentals.csv"
 
-anti_beta = pd.read_csv(CSV_FILE)
-clean_beta = anti_beta.dropna(subset= ["Beta"])
 
-def get_high_low_beta(clean_SP_matrix):
-    top_20_winners = clean_SP_matrix.nlargest(20, "Beta").sort_values(by = "Beta")
-    top_20_losers = clean_SP_matrix.nsmallest(20, "Beta").sort_values(by = "Beta")
-    print(top_20_winners, top_20_losers)
-    return top_20_losers, top_20_losers
+def _zscore(s: pd.Series, winsor: float = 3.0) -> pd.Series:
+    mu, sd = s.mean(), s.std()
+    if sd == 0:
+        return pd.Series(0.0, index=s.index)
+    return ((s - mu) / sd).clip(-winsor, winsor)
 
-get_high_low_beta(clean_beta)
+
+def get_defensive_signal(CSV) -> pd.Series:
+    """
+    Defensive (low-beta) signal: negated and z-scored beta.
+    Lower beta → higher signal → more attractive long.
+    Returns pd.Series indexed by Symbol.
+    """
+    df = pd.read_csv(CSV).dropna(subset=["Symbol", "Beta"])
+    return _zscore(-df.set_index("Symbol")["Beta"]).rename("defensive")
+
+
+def get_high_low_beta(CSV):
+    signal = get_defensive_signal(CSV)
+    df = signal.reset_index()
+    df.columns = ["Symbol", "signal"]
+    return df.nlargest(20, "signal"), df.nsmallest(20, "signal")

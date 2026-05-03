@@ -1,28 +1,47 @@
 from pathlib import Path
-
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-
 
 DATA_DIR = Path("Data")
 CSV_FILE = DATA_DIR / "sp500_stocks.csv"
 
-SP_stocks = pd.read_csv(CSV_FILE)
-SP_stocks["Date"] = pd.to_datetime(SP_stocks["Date"])
-clean_SP = SP_stocks.dropna(subset=["Date", "Symbol", "High", "Low"]).copy()
-clean_SP["Mid Price"] = (clean_SP["High"] + clean_SP["Low"]) / 2
 
-clean_SP = clean_SP.sort_values(["Symbol", "Date"])
-clean_SP["Mid Price 1M Ago"] = clean_SP.groupby("Symbol")["Mid Price"].shift(21)
+def _zscore(s: pd.Series, limit: float = 3.0) -> pd.Series:
+    mu, sd = s.mean(), s.std()
+    if sd == 0:
+        return pd.Series(0.0, index=s.index)
+    return ((s - mu) / sd).clip(-limit, limit)
 
-clean_SP["Mid Price Difference 1M"] = (clean_SP["Mid Price"] - clean_SP["Mid Price 1M Ago"])
-clean_SP["1M Percent Change"] = clean_SP["Mid Price Difference 1M"]/clean_SP["Mid Price 1M Ago"]
 
-def get_winners_losers(clean_SP_matrix):
-    top_20_winners = clean_SP_matrix.nlargest(20, "1M Percent Change").sort_values(by = "1M Percent Change")
-    top_20_losers = clean_SP_matrix.nsmallest(20, "1M Percent Change").sort_values(by = "1M Percent Change")
-    print(top_20_winners, top_20_losers)
-    return top_20_losers, top_20_losers
+def get_momentum_signal(CSV, lookback: int = 252, skip: int = 21) -> pd.Series:
+    """
+    Momentum signal: 12-1 month return (12M window, skip last month to avoid reversal).
+    Uses Adj Close prices. Cross-sectionally z-scored.
+    Returns pd.Series indexed by Symbol.
+    """
+    prices = (
+        pd.read_csv(CSV, parse_dates=["Date"])
+        .dropna(subset=["Symbol", "Adj Close"])
+        .sort_values(["Symbol", "Date"])
+    )
 
-get_winners_losers(clean_SP)
+    def _mom(group: pd.DataFrame) -> float:
+        group = group.sort_values("Date")
+        n = len(group)
+        if n < lookback + 1:
+            return np.nan
+        p_start = group["Adj Close"].iloc[-(lookback + 1)]
+        p_end   = group["Adj Close"].iloc[-(skip + 1)]
+        if p_start <= 0:
+            return np.nan
+        return p_end / p_start - 1.0
+
+    raw = prices[["Symbol", "Date", "Adj Close"]].groupby("Symbol").apply(_mom).dropna()
+    return _zscore(raw).rename("momentum")
+
+
+def get_winners_losers(CSV):
+    signal = get_momentum_signal(CSV)
+    df = signal.reset_index()
+    df.columns = ["Symbol", "signal"]
+    return df.nlargest(20, "signal"), df.nsmallest(20, "signal")
