@@ -15,6 +15,10 @@ FUNDAMENTALS_FILE = DATA_DIR / "sp500_fundamentals.csv"
 STOCKS_FILE       = DATA_DIR / "sp500_stocks.csv"
 
 
+# Note this is far from a perfect set up. price data stops around 2024, whereas fundamental data is pulled from yfinance
+# thus, likely a time offset between the 2, making the signals not line up. Given better data, this should run properly though
+
+
 #EPO uses shrinkage to reduce noise (relative to MVO)
 
 def _apply_epo_shrinkage(cov: np.ndarray, shrinkage: float) -> np.ndarray:
